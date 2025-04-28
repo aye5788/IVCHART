@@ -1,62 +1,67 @@
+# app.py
 import streamlit as st
 import requests
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
 
-# Load ORATS API token
+# Load ORATS token from secrets
 ORATS_API_TOKEN = st.secrets["orats"]["token"]
 
-st.title("📈 Option IV Tracker (Powered by ORATS)")
+st.title("📈 Option IV Tracker (Historical, Powered by ORATS)")
 
-# Inputs
-ticker = st.text_input("Enter Ticker (e.g., SPY)", "SPY")
-start_date = st.date_input("Start Date", datetime.today())
-option_type = st.selectbox("Option Type", ["call", "put"])
-strike_price = st.text_input("Strike Price (Optional)", "")
-expiration_date = None
-if strike_price:
-    expiration_date = st.date_input("Expiration Date (Required if Strike Specified)", datetime.today())
+# User Inputs
+ticker = st.text_input("Enter Ticker (e.g., SPY)", "CSCO")
+strike_price = st.number_input("Strike Price", value=55.0, format="%.2f")
+expiration_date = st.date_input("Expiration Date", datetime(2025, 5, 16))
+start_date = st.date_input("Start pulling data from", datetime(2024, 1, 1))
+option_type = st.selectbox("Option Type", ["Call", "Put"])
 
-if st.button("Fetch IV Data"):
-    
-    url = "https://api.orats.io/datav2/cores"
+if st.button("Fetch and Plot IV History"):
 
-    iv_key = "callMidIv" if option_type == "call" else "putMidIv"
+    url = "https://api.orats.io/datav2/hist/strikes"
 
     params = {
         "token": ORATS_API_TOKEN,
         "ticker": ticker.upper(),
-        "startdate": start_date.strftime("%Y-%m-%d"),
-        "fields": f"quoteDate,expiration,strike,{iv_key}"
+        "startDate": start_date.strftime("%Y-%m-%d"),
+        "fields": "tradeDate,expirDate,strike,callMidIv,putMidIv"
     }
-
-    if strike_price:
-        params["strikePrice"] = strike_price
-        params["expiration"] = expiration_date.strftime("%Y-%m-%d")
 
     response = requests.get(url, params=params)
 
     if response.status_code == 200:
-        data = response.json()
+        raw = response.json()
+        data = raw.get("data", [])
 
         if not data:
-            st.warning("No data returned. Check your inputs.")
+            st.warning("No historical data returned.")
         else:
-            iv_data = []
-            for record in data:
-                if record.get(iv_key) is not None:
-                    iv_data.append({
-                        "Date": record["quoteDate"],
-                        "IV": record[iv_key]
-                    })
+            # Convert to DataFrame
+            df = pd.DataFrame(data)
 
-            df = pd.DataFrame(iv_data)
-            df['Date'] = pd.to_datetime(df['Date'])
-            df = df.sort_values("Date")
+            # Filter for matching strike and expiration
+            df = df[
+                (df["strike"] == float(strike_price)) &
+                (df["expirDate"] == expiration_date.strftime("%Y-%m-%d"))
+            ]
 
-            fig = px.line(df, x="Date", y="IV", title=f"{ticker.upper()} {option_type.upper()} IV Over Time")
-            st.plotly_chart(fig)
+            if df.empty:
+                st.warning("No matching strike/expiration found in history.")
+            else:
+                df['tradeDate'] = pd.to_datetime(df['tradeDate'])
+                df = df.sort_values('tradeDate')
+
+                if option_type.lower() == "call":
+                    y_col = "callMidIv"
+                else:
+                    y_col = "putMidIv"
+
+                fig = px.line(df, x="tradeDate", y=y_col, 
+                              title=f"{ticker.upper()} {option_type.upper()} {strike_price} IV Over Time",
+                              labels={y_col: "Implied Volatility (IV)", "tradeDate": "Trade Date"})
+
+                st.plotly_chart(fig)
     else:
-        st.error(f"Error fetching data: {response.status_code}")
+        st.error(f"Failed to fetch data. Status code: {response.status_code}")
 

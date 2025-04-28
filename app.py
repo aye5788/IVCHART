@@ -97,7 +97,8 @@ if st.button("Fetch and Plot IV History"):
         df_final = df_final.sort_values("tradeDate")
 
         # Define custom color palette
-        custom_colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"]
+        custom_colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", 
+                         "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"]
 
         # Plot
         fig = px.line(
@@ -110,3 +111,19 @@ if st.button("Fetch and Plot IV History"):
         )
 
         st.plotly_chart(fig)
+
+        # Display IV Changes per Option
+        st.subheader("📈 IV Changes Over Selected Period")
+
+        for col in df_final.columns[1:]:  # skip tradeDate
+            start_iv = df_final[col].dropna().iloc[0]
+            end_iv = df_final[col].dropna().iloc[-1]
+            iv_change = end_iv - start_iv
+            iv_pct_change = (iv_change / start_iv) * 100
+
+            st.metric(
+                label=f"{col} IV Change",
+                value=f"{iv_change:.2f}%",
+                delta=f"{iv_pct_change:.2f}%"
+            )
+

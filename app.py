@@ -96,10 +96,17 @@ if st.button("Fetch and Plot IV History"):
         df_final = pd.concat(all_data, axis=1).reset_index()
         df_final = df_final.sort_values("tradeDate")
 
+        # Define custom color palette
+        custom_colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"]
+
         # Plot
-        fig = px.line(df_final, x="tradeDate", y=df_final.columns[1:], 
-                      title=f"{ticker.upper()} - Implied Volatility (%) Over Time",
-                      labels={"value": "Implied Volatility (%)", "tradeDate": "Trade Date", "variable": "Option"})
+        fig = px.line(
+            df_final,
+            x="tradeDate",
+            y=df_final.columns[1:], 
+            color_discrete_sequence=custom_colors,
+            title=f"{ticker.upper()} - Implied Volatility (%) Over Time",
+            labels={"value": "Implied Volatility (%)", "tradeDate": "Trade Date", "variable": "Option"}
+        )
 
         st.plotly_chart(fig)
-

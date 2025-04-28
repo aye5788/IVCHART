@@ -1,11 +1,10 @@
-# app.py
 import streamlit as st
 import requests
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
 
-# Load ORATS API token from Streamlit secrets
+# Load ORATS API token
 ORATS_API_TOKEN = st.secrets["orats"]["token"]
 
 st.title("📈 Option IV Tracker (Powered by ORATS)")
@@ -14,39 +13,40 @@ st.title("📈 Option IV Tracker (Powered by ORATS)")
 ticker = st.text_input("Enter Ticker (e.g., SPY)", "SPY")
 start_date = st.date_input("Start Date", datetime(2024, 1, 1))
 option_type = st.selectbox("Option Type", ["call", "put"])
-strike_price = st.text_input("Strike Price (Optional)", "")
+strike_price = st.text_input("Strike Price", "")
 
 if st.button("Fetch IV Data"):
 
-    # Form ORATS API URL
-    url = "https://api.orats.io/datav2/option-history"
+    url = "https://api.orats.io/datav2/cores"
 
     params = {
         "token": ORATS_API_TOKEN,
         "ticker": ticker.upper(),
-        "startDate": start_date.strftime("%Y-%m-%d"),
-        "optionType": option_type,
+        "startdate": start_date.strftime("%Y-%m-%d"),
+        "fields": ",".join(["quoteDate", "expiration", "strike", 
+                            "callMidIv" if option_type == "call" else "putMidIv"])
     }
 
     if strike_price:
         params["strikePrice"] = strike_price
 
-    # API Call
     response = requests.get(url, params=params)
 
     if response.status_code == 200:
         data = response.json()
 
         if not data:
-            st.warning("No data returned. Please check your inputs.")
+            st.warning("No data returned. Check your inputs.")
         else:
-            # Parse data
+            # Parse
+            iv_key = "callMidIv" if option_type == "call" else "putMidIv"
+
             iv_data = []
             for record in data:
-                if "tradeDate" in record and "ivMid" in record:
+                if record.get(iv_key) is not None:
                     iv_data.append({
-                        "Date": record["tradeDate"],
-                        "IV": record["ivMid"]
+                        "Date": record["quoteDate"],
+                        "IV": record[iv_key]
                     })
 
             df = pd.DataFrame(iv_data)

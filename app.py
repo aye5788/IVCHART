@@ -3,7 +3,7 @@ import streamlit as st
 import requests
 import pandas as pd
 import plotly.express as px
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # Load ORATS token from secrets
 ORATS_API_TOKEN = st.secrets["orats"]["token"]
@@ -19,7 +19,8 @@ option_type = st.selectbox("Option Type", ["Call", "Put"])
 
 if st.button("Fetch and Plot IV History"):
 
-    dates = pd.date_range(start=start_date, end=datetime.today())
+    # Generate only BUSINESS DAYS
+    dates = pd.date_range(start=start_date, end=datetime.today(), freq='B')
     all_data = []
 
     with st.spinner(f"Fetching IV data from {start_date.strftime('%Y-%m-%d')} to today..."):
@@ -41,11 +42,11 @@ if st.button("Fetch and Plot IV History"):
                         record.get("expirDate") == expiration_date.strftime("%Y-%m-%d")
                     ):
                         all_data.append(record)
-            else:
+            elif response.status_code != 404:
                 st.warning(f"Failed to fetch data for {date.strftime('%Y-%m-%d')} (status {response.status_code})")
 
     if not all_data:
-        st.error("No data found for the specified strike and expiration.")
+        st.error("No matching strike and expiration found over the selected period.")
     else:
         df = pd.DataFrame(all_data)
         df['tradeDate'] = pd.to_datetime(df['tradeDate'])

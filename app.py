@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 
-# Load ORATS token from secrets
+# Load ORATS token from Streamlit secrets
 ORATS_API_TOKEN = st.secrets["orats"]["token"]
 
 st.title("📈 Option IV Tracker (Historical, Powered by ORATS)")
@@ -57,9 +57,12 @@ if st.button("Fetch and Plot IV History"):
         else:
             y_col = "putMidIv"
 
+        # Convert IV from decimal to percentage
+        df[y_col] = df[y_col] * 100
+
         fig = px.line(df, x="tradeDate", y=y_col,
                       title=f"{ticker.upper()} {option_type.upper()} {strike_price} IV Over Time",
-                      labels={y_col: "Implied Volatility (IV)", "tradeDate": "Trade Date"})
+                      labels={y_col: "Implied Volatility (%)", "tradeDate": "Trade Date"})
 
         st.plotly_chart(fig)
 

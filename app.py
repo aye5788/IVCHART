@@ -60,9 +60,20 @@ if st.button("Fetch and Plot IV History"):
         # Convert IV from decimal to percentage
         df[y_col] = df[y_col] * 100
 
+        # Plot
         fig = px.line(df, x="tradeDate", y=y_col,
                       title=f"{ticker.upper()} {option_type.upper()} {strike_price} IV Over Time",
                       labels={y_col: "Implied Volatility (%)", "tradeDate": "Trade Date"})
 
         st.plotly_chart(fig)
+
+        # Calculate and display IV change
+        start_iv = df[y_col].iloc[0]
+        end_iv = df[y_col].iloc[-1]
+        iv_change = end_iv - start_iv
+        iv_pct_change = (iv_change / start_iv) * 100
+
+        st.subheader("📈 IV Change Over Selected Period")
+        st.metric(label="IV Change", value=f"{iv_change:.2f}%", delta=f"{iv_pct_change:.2f}%")
+
 

@@ -11,24 +11,29 @@ st.title("📈 Option IV Tracker (Powered by ORATS)")
 
 # Inputs
 ticker = st.text_input("Enter Ticker (e.g., SPY)", "SPY")
-start_date = st.date_input("Start Date", datetime(2024, 1, 1))
+start_date = st.date_input("Start Date", datetime.today())
 option_type = st.selectbox("Option Type", ["call", "put"])
-strike_price = st.text_input("Strike Price", "")
+strike_price = st.text_input("Strike Price (Optional)", "")
+expiration_date = None
+if strike_price:
+    expiration_date = st.date_input("Expiration Date (Required if Strike Specified)", datetime.today())
 
 if st.button("Fetch IV Data"):
-
+    
     url = "https://api.orats.io/datav2/cores"
+
+    iv_key = "callMidIv" if option_type == "call" else "putMidIv"
 
     params = {
         "token": ORATS_API_TOKEN,
         "ticker": ticker.upper(),
         "startdate": start_date.strftime("%Y-%m-%d"),
-        "fields": ",".join(["quoteDate", "expiration", "strike", 
-                            "callMidIv" if option_type == "call" else "putMidIv"])
+        "fields": f"quoteDate,expiration,strike,{iv_key}"
     }
 
     if strike_price:
         params["strikePrice"] = strike_price
+        params["expiration"] = expiration_date.strftime("%Y-%m-%d")
 
     response = requests.get(url, params=params)
 
@@ -38,9 +43,6 @@ if st.button("Fetch IV Data"):
         if not data:
             st.warning("No data returned. Check your inputs.")
         else:
-            # Parse
-            iv_key = "callMidIv" if option_type == "call" else "putMidIv"
-
             iv_data = []
             for record in data:
                 if record.get(iv_key) is not None:
@@ -53,8 +55,8 @@ if st.button("Fetch IV Data"):
             df['Date'] = pd.to_datetime(df['Date'])
             df = df.sort_values("Date")
 
-            # Plot
             fig = px.line(df, x="Date", y="IV", title=f"{ticker.upper()} {option_type.upper()} IV Over Time")
             st.plotly_chart(fig)
     else:
         st.error(f"Error fetching data: {response.status_code}")
+

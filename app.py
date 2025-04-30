@@ -97,14 +97,14 @@ if st.button("Fetch and Plot IV History"):
         df_final = df_final.sort_values("tradeDate")
 
         # Define custom color palette
-        custom_colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", 
+        custom_colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
                          "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"]
 
         # Plot
         fig = px.line(
             df_final,
             x="tradeDate",
-            y=df_final.columns[1:], 
+            y=df_final.columns[1:],
             color_discrete_sequence=custom_colors,
             title=f"{ticker.upper()} - Implied Volatility (%) Over Time",
             labels={"value": "Implied Volatility (%)", "tradeDate": "Trade Date", "variable": "Option"}
@@ -115,7 +115,7 @@ if st.button("Fetch and Plot IV History"):
         # Display IV Changes per Option
         st.subheader("📈 IV Changes Over Selected Period")
 
-        for col in df_final.columns[1:]:  # skip tradeDate
+        for col in df_final.columns[1:]:
             start_iv = df_final[col].dropna().iloc[0]
             end_iv = df_final[col].dropna().iloc[-1]
             iv_change = end_iv - start_iv
@@ -126,51 +126,43 @@ if st.button("Fetch and Plot IV History"):
                 value=f"{iv_change:.2f}%",
                 delta=f"{iv_pct_change:.2f}%"
             )
-            # Phase 1: Calendar Spread Metrics (only if exactly 2 legs selected)
-if len(df_final.columns[1:]) == 2:
-    opt1, opt2 = df_final.columns[1:]
 
-    # Extract IV series
-    iv1 = df_final[opt1].dropna()
-    iv2 = df_final[opt2].dropna()
+        # Phase 1: Calendar Spread Metrics (only if exactly 2 legs selected)
+        if len(df_final.columns[1:]) == 2:
+            opt1, opt2 = df_final.columns[1:]
+            iv1 = df_final[opt1].dropna()
+            iv2 = df_final[opt2].dropna()
 
-    if len(iv1) > 0 and len(iv2) > 0:
-        iv1_first, iv1_last = iv1.iloc[0], iv1.iloc[-1]
-        iv2_first, iv2_last = iv2.iloc[0], iv2.iloc[-1]
+            if len(iv1) > 0 and len(iv2) > 0:
+                iv1_first, iv1_last = iv1.iloc[0], iv1.iloc[-1]
+                iv2_first, iv2_last = iv2.iloc[0], iv2.iloc[-1]
 
-        # Get expiration dates from option_inputs
-        exp1 = [o['expiration'] for o in option_inputs if f"{o['strike']} {o['type'][0]} {o['expiration'].strftime('%m/%d/%y')}" == opt1][0]
-        exp2 = [o['expiration'] for o in option_inputs if f"{o['strike']} {o['type'][0]} {o['expiration'].strftime('%m/%d/%y')}" == opt2][0]
+                exp1 = [o['expiration'] for o in option_inputs if f"{o['strike']} {o['type'][0]} {o['expiration'].strftime('%m/%d/%y')}" == opt1][0]
+                exp2 = [o['expiration'] for o in option_inputs if f"{o['strike']} {o['type'][0]} {o['expiration'].strftime('%m/%d/%y')}" == opt2][0]
 
-        # Assign short and long legs based on expiration
-        if exp1 < exp2:
-            short_iv_now, long_iv_now = iv1_last, iv2_last
-            short_iv_open, long_iv_open = iv1_first, iv2_first
-            short_exp, long_exp = exp1, exp2
-        else:
-            short_iv_now, long_iv_now = iv2_last, iv1_last
-            short_iv_open, long_iv_open = iv2_first, iv1_first
-            short_exp, long_exp = exp2, exp1
+                if exp1 < exp2:
+                    short_iv_now, long_iv_now = iv1_last, iv2_last
+                    short_iv_open, long_iv_open = iv1_first, iv2_first
+                    short_exp, long_exp = exp1, exp2
+                else:
+                    short_iv_now, long_iv_now = iv2_last, iv1_last
+                    short_iv_open, long_iv_open = iv2_first, iv1_first
+                    short_exp, long_exp = exp2, exp1
 
-        # Calculate DTEs based on first trade date
-        dte_short = (short_exp - df_final['tradeDate'].min()).days
-        dte_long = (long_exp - df_final['tradeDate'].min()).days
+                dte_short = (short_exp - df_final['tradeDate'].min()).days
+                dte_long = (long_exp - df_final['tradeDate'].min()).days
 
-        # Metrics
-        iv_crush = short_iv_now - short_iv_open
-        iv_ratio = short_iv_now / long_iv_now if long_iv_now else float("nan")
-        iv_spread = short_iv_now - long_iv_now
-        slope = (long_iv_now - short_iv_now) / (dte_long - dte_short) if (dte_long - dte_short) != 0 else float("nan")
+                iv_crush = short_iv_now - short_iv_open
+                iv_ratio = short_iv_now / long_iv_now if long_iv_now != 0 else float("nan")
+                iv_spread = short_iv_now - long_iv_now
+                slope = (long_iv_now - short_iv_now) / (dte_long - dte_short) if (dte_long - dte_short) != 0 else float("nan")
 
-        # Display
-        st.subheader("📊 Calendar Spread Metrics")
+                st.subheader("📊 Calendar Spread Metrics")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric(label="IV Crush (Short Leg)", value=f"{iv_crush:.2f}%", delta=f"{(iv_crush / short_iv_open * 100):.2f}%")
-            st.metric(label="IV Spread", value=f"{iv_spread:.2f}%")
-        with col2:
-            st.metric(label="IV Ratio (Short / Long)", value=f"{iv_ratio:.2f}")
-            st.metric(label="IV Curve Slope", value=f"{slope:.4f} per DTE")
-
-
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric(label="IV Crush (Short Leg)", value=f"{iv_crush:.2f}%", delta=f"{(iv_crush / short_iv_open * 100):.2f}%")
+                    st.metric(label="IV Spread", value=f"{iv_spread:.2f}%")
+                with col2:
+                    st.metric(label="IV Ratio (Short / Long)", value=f"{iv_ratio:.2f}")
+                    st.metric(label="IV Curve Slope", value=f"{slope:.4f} per DTE")

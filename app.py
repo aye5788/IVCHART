@@ -149,8 +149,9 @@ if st.button("Fetch and Plot IV History"):
                     short_iv_open, long_iv_open = iv2_first, iv1_first
                     short_exp, long_exp = exp2, exp1
 
-                dte_short = (short_exp - df_final['tradeDate'].min()).days
-                dte_long = (long_exp - df_final['tradeDate'].min()).days
+                dte_short = (pd.Timestamp(short_exp) - df_final['tradeDate'].min()).days
+                dte_long = (pd.Timestamp(long_exp) - df_final['tradeDate'].min()).days
+
 
                 iv_crush = short_iv_now - short_iv_open
                 iv_ratio = short_iv_now / long_iv_now if long_iv_now != 0 else float("nan")
